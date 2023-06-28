@@ -17,7 +17,7 @@ Accept: */*
     ],
     "passenger": {
         "adults": 2,
-        "children": 1,
+        "childrens": 1,
         "total": 3
     },
     "bonus": []

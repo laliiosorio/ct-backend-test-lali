@@ -56,6 +56,11 @@ Respecto al backend tiene que ser realizado en Typescript, y tiene ya preinstala
 - Sacar todas las combinaciones posibles de entre los resultados, por ejemplo, en un viaje Madrid - Barcelona, tenemos varias estaciones como Atocha y Chamartin, habrá varios horarios, y varios tipos de acomodación, una combinación sería: Madrid/Atocha/11:00/Turista - Barcelona/Sans/14:00/Premium
 - Guardar en la base de datos los resultados según nuestra estructura interna, la cual esta tipada como CTSearch en el directorio de types, ahí mismo encontraras cada parámetro explicado.
 
+### Ejemplo
+Para un viaje Madrid - Baercelona, el resultados seria:
+Combinacion1 = Madrid/Atocha/11:00 - Barcelona/Sans/14:00, opciones: [Butaca Premium -> precio 112€, Estandar -> precio 89€]
+Combinacion2 = ....
+
 ### Parámetros de entrada
 - `journeys`: este parámetro tiene un listado de todos los viajes pedidos por el usuario, por ejemplo: si un usuario quiere ir de Madrid a Barcelona unos dias y volver, vendra un array con 2 elementos, el primero de ida, y el segundo de vuelta
 - `passenger`: Aquí están reflejados la cantidad y tipo de pasajeros

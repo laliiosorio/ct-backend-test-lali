@@ -57,27 +57,30 @@ export type CTSearch = {
         minutes: number;
       };
     }[];
-    /** Objeto de acomodacion seleccionada */
-    accommodations: {
-      /** Codigo de la acomodacion ej: Estandar, Confort, Premiun, ... */
-      type: string;
-      /** Pasajeros que van en esta acomodacion */
-      passengers: {
-        adults: string;
-        children: string;
+    /** Opciones que tiene cada combinacion */
+    options : {
+      /** Objeto de la acomodacion */
+      accommodation: {
+        /** Codigo de la acomodacion ej: Estandar, Confort, Premiun, ... */
+        type: string;
+        /** Pasajeros que van en esta acomodacion */
+        passengers: {
+          adults: string;
+          children: string;
+        };
       };
-    };
-  };
-  /** Objeto con los precios de la acomodacion, horario, y trayecto anteriores */
-  price: {
-    /** Precio total de todo el trayecto */
-    total: number;
-    /** Desglose de precios */
-    breakdown: {
-      /** Precio por cada adulto */
-      adult: number;
-      /** Precio por cada niño */
-      children: number;
-    };
-  };
-};
+      /** Objeto con los precios de la acomodacion, horario, y trayecto anteriores */
+      price: {
+        /** Precio total de todo el trayecto */
+        total: number;
+        /** Desglose de precios */
+        breakdown: {
+          /** Precio por cada adulto */
+          adult: number;
+          /** Precio por cada niño */
+          children: number;
+        };
+      };
+    }[];
+  }
+}
