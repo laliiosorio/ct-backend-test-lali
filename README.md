@@ -10,6 +10,7 @@ Esta prueba técnica ha sido concebida lo más parecido a un ejemplo real, con l
 ### Puntos opcionales a valorar
 - Generar un tipado correcto
 - Test unitarios
+- Implementar un sistema de cache con Redis
 
 ----------------------
 # Prueba técnica
