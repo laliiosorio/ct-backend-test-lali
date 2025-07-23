@@ -1,13 +1,16 @@
-import * as express from 'express';
-import { Parameters, CTSearch } from './types';
+import 'dotenv/config';
+import express from 'express';
+import routes from './routes';
+
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
-app.post('/', (req, res) => {
-  const body: Parameters = req.body;
+app.use(express.json());
 
-  res.send('Hello World!');
-});
+// Test in navegation
+app.get('/', (_, res) => res.send('Hello from GET!'));
+
+app.use('/', routes);
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);

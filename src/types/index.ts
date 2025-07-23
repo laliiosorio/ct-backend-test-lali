@@ -58,7 +58,7 @@ export type CTSearch = {
       };
     }[];
     /** Opciones que tiene cada combinacion */
-    options : {
+    options: {
       /** Objeto de la acomodacion */
       accommodation: {
         /** Codigo de la acomodacion ej: Estandar, Confort, Premiun, ... */
@@ -82,5 +82,5 @@ export type CTSearch = {
         };
       };
     }[];
-  }
-}
+  };
+};
