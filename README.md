@@ -1,3 +1,209 @@
+
+# CT Backend Test Lali
+
+Este repositorio contiene la solución completa a la prueba técnica de integración del proveedor **SERVIVUELO** en el motor de búsquedas de Conecta Turismo. Está desarrollado en Node.js + TypeScript, con arquitectura modular y algunas buenas prácticas extra:
+
+## 📝 Notas sobre desarrollo
+
+### Decisiones técnicas relevantes
+
+- **Zod** se utiliza para validar y transformar los parámetros de entrada en los controladores, asegurando que los datos recibidos cumplen el formato esperado y facilitando la gestión de errores de validación.
+- **class-validator** se emplea para validar las variables de entorno en el arranque de la aplicación, evitando errores de configuración y facilitando el despliegue en distintos entornos.
+- **Redis** se integra como sistema de cache para acelerar las respuestas en llamadas repetidas a horarios, acomodaciones y precios, reduciendo la latencia y la carga sobre el proveedor mock.
+- **Arquitectura modular (DDD)**: Cada dominio (`search`, `servivuelo`) tiene su propio controller, service, types y herramientas, lo que facilita la escalabilidad y el mantenimiento.
+- **Jest + ts-jest** para los tests unitarios, permitiendo asegurar la calidad y el correcto funcionamiento de los módulos y funciones puras.
+
+### Mejoras futuras y limitaciones conocidas
+
+- **Mejoras posibles**:
+  - Implementar tests de integración para cubrir el flujo completo de búsqueda y persistencia.
+  - Añadir documentación OpenAPI/Swagger para facilitar el consumo de la API.
+  - Mejorar la gestión de errores y logging para facilitar el diagnóstico en producción.
+  - Añadir soporte para otros proveedores.
+
+- **Limitaciones actuales**:
+  - El mock del proveedor Servivuelo es estático y no simula todos los posibles errores o casos reales.
+  - La validación de bonus y pasajeros es básica y podría ampliarse para casos más complejos.
+  - La estructura de CTSearch está pensada para el caso de uso actual y puede requerir ajustes si se amplía el dominio.
+
+---
+
+## 🚀 Quick Start
+
+### Prerrequisitos
+
+- Node.js v18+  
+- Docker & Docker Compose  
+
+### 1. Clonar y preparar
+
+```bash
+git clone git@github.com:laliiosorio/ct-backend-test-lali.git
+cd ct-backend-test-lali
+```
+## 2. Variables de entorno
+
+Crea un fichero `.env` en la raíz:
+
+```dotenv
+# MongoDB
+MONGO_URI=mongodb://localhost:27017
+TRAIN_DB=trainEngine
+SEARCH_DB=searches
+
+# Servivuelo mock
+SERVIVUELO_URL=http://localhost/servivuelo
+
+# Redis cache
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+
+# App
+PORT=3000
+```
+
+## 3. Levantar Mongo, Redis y el mock de Servivuelo
+
+```bash
+npm run docker:on
+```
+
+Esto iniciará los siguientes contenedores:
+
+- **mongo** en el puerto `27017`
+- **redis** en el puerto `6379`
+- **mock.servivuelo** (servicio de mocks de Servivuelo)
+
+---
+
+## 4. Instalar dependencias y arrancar el backend
+
+```bash
+npm install
+npm start
+```
+
+- `npm install` instala todas las dependencias del proyecto.
+- `npm start` arranca el servidor en [http://localhost:3000](http://localhost:3000) (con hot‑reload).
+
+---
+
+## 5. Estructura de carpetas
+
+```
+src/
+├── main.ts                 
+├── routes/                 
+│   └── index.ts            
+├── shared/                 
+│   ├── env.ts              
+│   ├── mongo.ts            
+│   ├── redis.ts            
+│   └── __tests__/          
+│       └── mongo.test.ts   
+├── modules/                
+│   ├── servivuelo/         
+│   │   ├── servivuelo.service.ts
+│   │   ├── servivuelo.types.ts  
+│   │   └── __tests__/          
+│   │       └── servivuelo.service.test.ts
+│   └── search/             
+│       ├── search.controller.ts
+│       ├── search.schema.ts      
+│       ├── search.domain.ts      
+│       ├── search.service.ts     
+│       ├── search.cache.ts       
+│       ├── search.types.ts       
+│       ├── tools/                
+│       │   ├── calculateDuration.ts
+│       │   ├── calculateTotalPrice.ts
+│       │   ├── detectTripType.ts
+│       │   └── __tests__/          
+│       │       ├── calculateDuration.test.ts
+│       │       ├── calculateTotalPrice.test.ts
+│       │       └── detectTripType.test.ts
+│       └── __tests__/              
+│           ├── search.service.test.ts
+│           └── search.domain.test.ts
+└── types/
+    └── index.ts                   
+```
+
+---
+
+## 6. Scripts disponibles
+
+| Comando              | Descripción                                 |
+|----------------------|---------------------------------------------|
+| `npm start`          | Arranca el servidor (hot‑reload)            |
+| `npm run docker:on`  | Levanta Mongo, Redis y mock.servivuelo      |
+| `npm run docker:off` | Detiene y elimina los contenedores Docker   |
+| `npm test`           | Ejecuta Jest + cobertura (`--coverage`)     |
+| `npm run lint`       | Ejecuta ESLint
+
+
+## 📖 Uso
+
+Envía un POST a `/search` con un body JSON:
+
+```json
+{
+  "journeys": [
+    { "from": "MAD", "to": "BCN", "date": "2022-12-24" }
+  ],
+  "passenger": { "adults": 2, "children": 0, "total": 2 },
+  "bonus": []
+}
+```
+
+La respuesta será un array de objetos **CTSearch**, cada uno guardado en MongoDB en `searches.train_results`.
+
+---
+
+## ✅ Tests unitarios
+
+Con Jest + ts‑jest:
+
+```bash
+npm test
+```
+
+Verás tests para todos los módulos y funciones puras (`tools/`), wrappers de servicio, validación de env, acceso a Mongo, dominio, caché…
+
+
+---
+
+## 📦 Cache con Redis
+
+Se cachean tres tipos de llamadas externas:
+
+- **Timetables**: TTL 60 s, key: `timetables:from:to:date:adults:children`
+- **Accommodations**: TTL 300 s, key: `accommodations:shipId:departureDate`
+- **Prices**: TTL 120 s, key: `prices:shipId:departureDate:accommodation:pax[:bonus]`
+
+Para mejorar latencia y reducir presión sobre el mock proveedor.
+
+---
+
+## 🏗 Arquitectura y patrones
+
+- Modular / DDD: cada dominio (`search`, `servivuelo`) con su propio controller, service, types y herramientas.
+- **Zod** para validar y transformar parámetros de entrada (fechas → DD/MM/YYYY, bonus, cantidades).
+- **class-validator** para asegurar la configuración de entorno.
+- Wrappers **OrFail** que envuelven a Axios y añaden contexto al lanzar errores.
+
+## 📚 Referencias y enlaces útiles
+
+- [Repositorio original](https://github.com/laliiosorio/ct-backend-test-lali.git)
+- [Documentación del proveedor: `servivuelo.pdf`](https://github.com/laliiosorio/ct-backend-test-lali/blob/main/servivuelo-doc.pdf)
+- [Express.js](https://expressjs.com/)
+- [Jest](https://jestjs.io/)
+- [Docker](https://docs.docker.com/)
+- [MongoDB](https://www.mongodb.com/docs/)
+- [Redis](https://redis.io/documentation)
+
+
+----------------------
 # Conecta Turismo
 
 Esta prueba técnica ha sido concebida lo más parecido a un ejemplo real, con la idea de valorar tanto el desarrollo de la lógica de negocio, como la calidad del código y las buenas prácticas.

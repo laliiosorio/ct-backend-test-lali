@@ -1,15 +1,17 @@
+import {
+  getAccommodationsCached,
+  getPricesCached,
+  getTimetablesCached,
+} from '@/modules/search/search.cache';
 import { Journey, SearchParameters } from '@/modules/search/search.schema';
 import {
   findFromStationsByCode,
   findToStationsByCode,
-  getAccommodationsOrFail,
   getInternalStationCode,
-  getPriceOrFail,
   getProviderCode,
-  getTimetablesOrFail,
   saveSearchResult,
 } from '@/modules/search/search.service';
-import { PriceItem, Provider, TimetableItem } from '@/modules/search/search.types';
+import { PriceItem, Provider, SearchCombination } from '@/modules/search/search.types';
 import { calculateDuration } from '@/modules/search/tools/calculateDuration';
 import { calculateTotalPrice } from '@/modules/search/tools/calculateTotalPrice';
 import { detectTripType } from '@/modules/search/tools/detectTripType';
@@ -21,9 +23,8 @@ import { CTSearch, Parameters } from '@/types';
  * @param params The search parameters
  * @returns The formatted CTSearch result
  */
-export async function handleSearch(params: SearchParameters): Promise<CTSearch> {
-  const journeysFullData: TimetableItem[] = [];
-  const optionsFullData: PriceItem[] = [];
+export async function handleSearch(params: SearchParameters): Promise<CTSearch[]> {
+  const providerFullData: PriceItem[] = [];
 
   // Process each journey segment (from - to)
   for (const journey of params.journeys) {
@@ -69,19 +70,13 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
     const timetableItems = (
       await Promise.all(
         stationPairs.map(async ({ departureCode, arrivalCode }) => {
-          console.log(
-            `Fetching timetables for ${departureCode} to ${arrivalCode} on ${journey.date}`,
-          );
-
-          const timeTables = await getTimetablesOrFail(
+          const timeTables = await getTimetablesCached(
             departureCode,
             arrivalCode,
             journey.date,
             params.passenger.adults,
             params.passenger.children,
           );
-
-          console.log('timeTables -------:', timeTables);
 
           const [internalDepartureCode, internalArrivalCode] = await Promise.all([
             getInternalStationCode(Provider.Servivuelo, departureCode),
@@ -101,9 +96,7 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
       )
     ).flat();
 
-    journeysFullData.push(...timetableItems);
-
-    console.log('Timetable items:', timetableItems.length);
+    // journeys/FullData.push(...timetableItems);
 
     /**
      * Step 5: Fetch accommodations for each timetable item.
@@ -112,11 +105,12 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
       await Promise.all(
         timetableItems.map(async timetableItem => {
           const { timetable } = timetableItem;
-          const accommodations = await getAccommodationsOrFail(
+          const accommodations = await getAccommodationsCached(
             timetable.shipId,
             timetable.departureDate,
           );
           return accommodations.map(accommodation => ({
+            ...timetableItem,
             shipId: timetable.shipId,
             departureDate: timetable.departureDate,
             accommodationType: accommodation.type,
@@ -125,8 +119,6 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
       )
     ).flat();
 
-    console.log('Accommodation items:', accommodationItems.length);
-
     /**
      * Step 6: Fetch prices for each timetable and accommodation combination.
      */
@@ -134,7 +126,7 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
       accommodationItems.map(async accommodationItem => {
         const { shipId, departureDate, accommodationType } = accommodationItem;
         // Fetch adult price
-        const adultRawPrice = await getPriceOrFail(
+        const adultRawPrice = await getPricesCached(
           shipId,
           departureDate,
           accommodationType,
@@ -146,7 +138,7 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
         // Fetch child price
         let childPrice = 0;
         if (params.passenger.children > 0) {
-          const childRawPrice = await getPriceOrFail(
+          const childRawPrice = await getPricesCached(
             shipId,
             departureDate,
             accommodationType,
@@ -156,7 +148,6 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
         }
 
         return {
-          journey,
           ...accommodationItem,
           adultPrice,
           childPrice,
@@ -164,32 +155,70 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
       }),
     );
 
-    optionsFullData.push(...priceItems);
+    providerFullData.push(...priceItems);
   }
-
-  console.log('Total provider data items:', optionsFullData.length);
 
   /**
    * Step 7: Assemble and persist the final result.
    */
-  const allData = {
-    params,
-    journeysFullData,
-    optionsFullData,
-  };
-  const result = formatCTSearchResult(allData);
+  const searchCombinations = getCombinations(providerFullData, params);
 
-  console.log(
-    result.train.journeys.length,
-    'journeys found',
-    result.train.options.length,
-    'options found',
+  /**
+   * Step 8: Format the CTSearch result and save it to the database.
+   */
+  const savedResults: CTSearch[] = [];
+  for (const combination of searchCombinations) {
+    const result = formatCTSearchResult(combination, params);
+    await saveSearchResult(result);
+    savedResults.push(result);
+  }
+
+  return savedResults;
+}
+
+/**
+ * Groups provider data into unique train combinations by shipId and timetable.
+ * Each combination contains all available accommodation options for a specific train and schedule.
+ * @param providerFullData The list of price items from providers
+ * @param params The search parameters
+ * @returns Array of grouped SearchCombination objects
+ */
+function getCombinations(
+  providerFullData: PriceItem[],
+  params: SearchParameters,
+): SearchCombination[] {
+  const searchCombinations = Object.values(
+    providerFullData.reduce((combination, item) => {
+      const key = `${item.shipId}-${item.timetable.departureDate}-${item.timetable.arrivalDate}`;
+      if (!combination[key]) {
+        combination[key] = {
+          from: item.internalDepartureCode,
+          to: item.internalArrivalCode,
+          date: item.journey.date,
+          shipId: item.shipId,
+          departureTime: item.timetable.departureDate,
+          arrivalTime: item.timetable.arrivalDate,
+          options: [],
+        };
+      }
+      combination[key].options.push({
+        accommodationType: item.accommodationType,
+        price: {
+          adult: item.adultPrice,
+          children: item.childPrice,
+          total: calculateTotalPrice(
+            item.adultPrice,
+            item.childPrice,
+            params.passenger.adults,
+            params.passenger.children,
+          ),
+        },
+      });
+      return combination;
+    }, {} as Record<string, SearchCombination>),
   );
 
-  // Step 8: Save the result in MongoDB
-  await saveSearchResult(result);
-
-  return result;
+  return searchCombinations;
 }
 
 /**
@@ -197,60 +226,43 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch> 
  * @param providerData The raw provider data
  * @returns The formatted CTSearch result
  */
-function formatCTSearchResult(providerData: {
-  params: SearchParameters;
-  journeysFullData: TimetableItem[];
-  optionsFullData: PriceItem[];
-}): CTSearch {
-  const { params, journeysFullData, optionsFullData } = providerData;
+function formatCTSearchResult(combination: SearchCombination, params: SearchParameters): CTSearch {
   const { passenger } = params;
   const type = detectTripType(params.journeys);
 
-  const journeys: CTSearch['train']['journeys'] = [];
-  const options: CTSearch['train']['options'] = [];
-
-  // Map each provider data entry to a CTSearch journey
-  const journeyEntries = journeysFullData.map(item => {
-    const { journey, timetable, internalDepartureCode, internalArrivalCode } = item;
-
-    const duration = calculateDuration(
-      journey.date,
-      timetable.departureDate,
-      timetable.arrivalDate,
-    );
-
-    return {
+  const journeys: CTSearch['train']['journeys'] = [
+    {
       departure: {
-        date: journey.date,
-        time: timetable.departureDate,
-        station: internalDepartureCode,
+        date: combination.date,
+        time: combination.departureTime,
+        station: combination.from,
       },
       arrival: {
-        date: journey.date,
-        time: timetable.arrivalDate,
-        station: internalArrivalCode,
+        date: combination.date,
+        time: combination.arrivalTime,
+        station: combination.to,
       },
-      duration,
-    };
-  });
-  journeys.push(...journeyEntries);
+      duration: calculateDuration(
+        combination.date,
+        combination.departureTime,
+        combination.arrivalTime,
+      ),
+    },
+  ];
 
-  // Map each provider data entry to a CTSearch option
-  const optionEntries = optionsFullData.map(({ accommodationType, adultPrice, childPrice }) => ({
+  const options: CTSearch['train']['options'] = combination.options.map(opt => ({
     accommodation: {
-      type: accommodationType,
+      type: opt.accommodationType,
       passengers: {
         adults: passenger.adults?.toString(),
         children: passenger.children?.toString(),
       },
     },
     price: {
-      total: calculateTotalPrice(adultPrice, childPrice, passenger.adults, passenger.children),
-      breakdown: { adult: adultPrice, children: childPrice },
+      total: opt.price.total,
+      breakdown: { adult: opt.price.adult, children: opt.price.children },
     },
   }));
-
-  options.push(...optionEntries);
 
   const parameters: Parameters = {
     ...params,

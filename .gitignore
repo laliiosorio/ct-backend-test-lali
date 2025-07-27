@@ -3,6 +3,9 @@
 /node_modules
 .env
 
+# test env vars for Jest
+jest.env.js
+
 # Logs
 logs
 *.log

@@ -32,6 +32,26 @@ export interface PriceItem {
   shipId: string;
   departureDate: string;
   accommodationType: string;
+  timetable: Timetable;
+  internalDepartureCode: string | null;
+  internalArrivalCode: string | null;
   adultPrice: number;
   childPrice: number;
+}
+
+export interface SearchCombination {
+  from: string;
+  to: string;
+  date: string;
+  shipId: string;
+  departureTime: string;
+  arrivalTime: string;
+  options: {
+    accommodationType: string;
+    price: {
+      adult: number;
+      children: number;
+      total: number;
+    };
+  }[];
 }

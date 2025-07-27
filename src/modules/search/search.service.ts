@@ -6,7 +6,7 @@ import {
   getAccommodations,
   getPrices,
   getTimetables,
-} from '@/modules/servivuelo/serivuelo.service';
+} from '@/modules/servivuelo/servivuelo.service';
 import {
   Accommodation,
   BonusTypeEnum,
