@@ -1,17 +1,15 @@
 import 'dotenv/config';
-import express from 'express';
+import './shared/env';
 import routes from './routes';
+import express from 'express';
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = Number(process.env.PORT);
 
 app.use(express.json());
-
-// Test in navegation
-app.get('/', (_, res) => res.send('Hello from GET!'));
 
 app.use('/', routes);
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`App listening on port ${port}`);
 });

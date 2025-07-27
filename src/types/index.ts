@@ -1,3 +1,5 @@
+import { BonusTypeEnum } from '@/modules/servivuelo/servivuelo.types';
+
 /** ## Tipado de los parametros de entrada */
 export type Parameters = {
   /** listado de viajes */
@@ -19,7 +21,7 @@ export type Parameters = {
     total: number;
   };
   /** Descuentos especiales, como juvilado */
-  bonus: ['retired'];
+  bonus: BonusTypeEnum[];
 };
 
 /** ## Tipado del objeto que guardamos en la DB */

@@ -1,0 +1,19 @@
+POST http://localhost:3000/search HTTP/1.1
+Content-type: application/json
+Accept: */*
+
+{
+    "journeys": [
+        {
+            "from": "VAL",
+            "to": "MAD",
+            "date": "2022-12-26"
+        }
+    ],
+    "passenger": {
+        "adults": 2,
+        "children": 1,
+        "total": 3
+    },
+    "bonus": ["retired"]
+}
