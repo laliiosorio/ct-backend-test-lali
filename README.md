@@ -202,7 +202,7 @@ Para mejorar latencia y reducir presión sobre el mock proveedor.
 
 ## 📚 Referencias y enlaces útiles
 
-- [Repositorio original](https://github.com/laliiosorio/ct-backend-test-lali.git)
+- [Repositorio original](https://github.com/conectaturismo/ct-recruitment-back-test)
 - [Documentación del proveedor: `servivuelo.pdf`](https://github.com/laliiosorio/ct-backend-test-lali/blob/main/servivuelo-doc.pdf)
 - [Express.js](https://expressjs.com/)
 - [Jest](https://jestjs.io/)
