@@ -12,7 +12,16 @@ import {
 } from '@/modules/search/search.service';
 
 /**
- * Cache wrapper for timetables, preserving OrFail errors.
+ * Retrieves timetables from cache if available, otherwise fetches from provider.
+ * Uses a strict OrFail wrapper to preserve error context.
+ *
+ * @param from - Departure station code
+ * @param to - Arrival station code
+ * @param date - Travel date (YYYY-MM-DD)
+ * @param adults - Number of adult passengers
+ * @param children - Number of child passengers
+ * @param ttlSeconds - Cache TTL in seconds (default: 60)
+ * @returns Array of Timetable objects
  */
 export async function getTimetablesCached(
   from: string,
@@ -24,19 +33,27 @@ export async function getTimetablesCached(
 ): Promise<Timetable[]> {
   const key = `timetables:${from}:${to}:${date}:${adults}:${children}`;
   const cached = await redis.get(key);
+
   if (cached) {
     console.log(`Cache finded: ${key}`);
     return JSON.parse(cached) as Timetable[];
   }
+
   console.log(`Cache miss: ${key}`);
-  // Usamos la versión OrFail para mantener el try/catch contextual
   const data = await getTimetablesOrFail(from, to, date, adults, children);
+
   await redis.setex(key, ttlSeconds, JSON.stringify(data));
   return data;
 }
 
 /**
- * Cache wrapper for accommodations, preserving OrFail errors.
+ * Retrieves accommodations from cache if available, otherwise fetches from provider.
+ * Uses a strict OrFail wrapper to preserve error context.
+ *
+ * @param shipId - Unique identifier for the ship
+ * @param departureDate - Departure date (YYYY-MM-DD)
+ * @param ttlSeconds - Cache TTL in seconds (default: 300)
+ * @returns Array of Accommodation objects
  */
 export async function getAccommodationsCached(
   shipId: string,
@@ -45,16 +62,32 @@ export async function getAccommodationsCached(
 ): Promise<Accommodation[]> {
   const key = `accommodations:${shipId}:${departureDate}`;
   const cached = await redis.get(key);
+
   if (cached) {
     console.log(`Cache finded: ${key}`);
     return JSON.parse(cached) as Accommodation[];
   }
+
   console.log(`Cache miss: ${key}`);
   const data = await getAccommodationsOrFail(String(shipId), departureDate);
+
   await redis.setex(key, ttlSeconds, JSON.stringify(data));
   return data;
 }
 
+/**
+ * Retrieves prices from cache if available, otherwise fetches from provider.
+ * Bonus array is encoded in the cache key for uniqueness.
+ * Uses a strict OrFail wrapper to preserve error context.
+ *
+ * @param shipId - Unique identifier for the ship
+ * @param departureDate - Departure date (YYYY-MM-DD)
+ * @param accommodation - Accommodation type
+ * @param pax - Passenger type (enum)
+ * @param bonus - Array of bonus types (optional)
+ * @param ttlSeconds - Cache TTL in seconds (default: 120)
+ * @returns Price as a string
+ */
 export async function getPricesCached(
   shipId: string,
   departureDate: string,
@@ -63,23 +96,22 @@ export async function getPricesCached(
   bonus: BonusTypeEnum[] = [],
   ttlSeconds = 120,
 ): Promise<string> {
-  // 1) Build the Redis key, including bonus if present
+  // Build the Redis key, including bonus if present
   const bonusPart = bonus.length ? `:${encodeURIComponent(JSON.stringify(bonus))}` : '';
   const key = `prices:${shipId}:${departureDate}:${accommodation}:${pax}${bonusPart}`;
 
-  // 2) Try reading from cache
+  // Try reading from cache
   const cached = await redis.get(key);
   if (cached !== null) {
     console.log(`Cache finded: ${key}`);
-    // JSON.parse of a JSON-stringified string gives back the original string
     return JSON.parse(cached) as string;
   }
 
-  // 3) Cache miss: fetch via the OrFail wrapper
+  // Cache miss: fetch via the OrFail wrapper
   console.log(`Cache miss: ${key}`);
   const data = await getPriceOrFail(shipId, departureDate, accommodation, pax, bonus);
 
-  // 4) Store in Redis and return
+  // Store in Redis and return
   await redis.setex(key, ttlSeconds, JSON.stringify(data));
   return data;
 }

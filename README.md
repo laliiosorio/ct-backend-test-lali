@@ -13,6 +13,14 @@ Este repositorio contiene la solución completa a la prueba técnica de integrac
 - **Arquitectura modular (DDD)**: Cada dominio (`search`, `servivuelo`) tiene su propio controller, service, types y herramientas, lo que facilita la escalabilidad y el mantenimiento.
 - **Jest + ts-jest** para los tests unitarios, permitiendo asegurar la calidad y el correcto funcionamiento de los módulos y funciones puras.
 
+### Decisión sobre el formato de respuesta
+
+He decidido que el valor retornado al realizar la búsqueda sea un **array** con cada una de las combinaciones posibles, utilizando el formato tipado de **CTSearch**. Considero que este enfoque se asemeja al funcionamiento de una aplicación de búsqueda de viajes, donde el usuario espera ver todas las opciones disponibles de forma clara y estructurada. Además, este formato facilita que el frontend pueda mostrar fácilmente la información de cada combinación (horario, acomodación, precio, etc.) y permite escalar o modificar la presentación de resultados sin cambios en la lógica de backend.
+
+### Decisión sobre la ruta del endpoint
+
+En lugar de exponer la búsqueda directamente en la raíz (`/`), decidí que el endpoint fuera `/search`. Esto es más coherente con la estructura modular del proyecto, ya que cada dominio puede tener su propio controlador y rutas agrupadas bajo un prefijo claro. Así, se facilita la escalabilidad y el mantenimiento, permitiendo añadir fácilmente nuevos módulos o dominios en el futuro sin mezclar responsabilidades en la raíz de la API.
+
 ### Mejoras futuras y limitaciones conocidas
 
 - **Mejoras posibles**:

@@ -96,8 +96,6 @@ export async function handleSearch(params: SearchParameters): Promise<CTSearch[]
       )
     ).flat();
 
-    // journeys/FullData.push(...timetableItems);
-
     /**
      * Step 5: Fetch accommodations for each timetable item.
      */

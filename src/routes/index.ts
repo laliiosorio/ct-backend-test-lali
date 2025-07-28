@@ -3,7 +3,11 @@ import { Router } from 'express';
 
 const router = Router();
 
-// * All search-related endpoints live under /search
+/**
+ * Root router for the application.
+ * Mounts all search-related endpoints under /search.
+ * Additional domain routers can be added here in the future.
+ */
 router.use('/search', searchController);
 
 export default router;
